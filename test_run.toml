@@ -1,0 +1,11 @@
+[corpus]
+output_dir = "test-corpus"
+
+[logging]
+level = "DEBUG"
+
+[sources.github]
+enabled = true
+token_env = "GITHUB_TOKEN"
+query = "language:COBOL fork:false size:>1000"
+max_repos = 5

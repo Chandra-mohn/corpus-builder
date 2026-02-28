@@ -1,0 +1,24 @@
+[corpus]
+output_dir = "cobol-corpus"
+
+[logging]
+level = "INFO"
+
+[sources.github]
+enabled = true
+token_env = "GITHUB_TOKEN"
+query = "language:COBOL fork:false size:>1000"
+max_repos = 1000
+
+[sources.software_heritage]
+enabled = true
+query = "cobol"
+
+[evaluate]
+threshold = 30
+training_keywords = [
+    "training", "tutorial", "exercise", "chapter", "course",
+    "learn", "hello", "sample", "example", "practice",
+]
+dry_run = true
+report_path = ""

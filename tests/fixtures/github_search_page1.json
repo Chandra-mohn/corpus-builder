@@ -1,0 +1,26 @@
+{
+  "total_count": 3,
+  "incomplete_results": false,
+  "items": [
+    {
+      "id": 1001,
+      "full_name": "test/cobol-payroll",
+      "clone_url": "https://github.com/test/cobol-payroll.git",
+      "stargazers_count": 15,
+      "description": "Legacy payroll system",
+      "default_branch": "main",
+      "pushed_at": "2024-01-15T10:00:00Z",
+      "license": {"spdx_id": "MIT"}
+    },
+    {
+      "id": 1002,
+      "full_name": "test/cobol-banking",
+      "clone_url": "https://github.com/test/cobol-banking.git",
+      "stargazers_count": 42,
+      "description": "Banking transaction processor",
+      "default_branch": "master",
+      "pushed_at": "2024-06-20T08:00:00Z",
+      "license": null
+    }
+  ]
+}
