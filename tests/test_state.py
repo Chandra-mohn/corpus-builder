@@ -150,6 +150,23 @@ class TestFiles:
     def test_nonexistent_file(self, state):
         assert not state.file_exists("nope")
 
+    def test_add_file_with_source_format(self, state):
+        state.add_file(
+            "fmt1", "fm/fmt1.cbl", 800, 40,
+            file_type="cbl", dialect_tags="SQL", source_format="fixed",
+        )
+        row = state.con.execute(
+            "SELECT source_format FROM files WHERE sha256 = 'fmt1'"
+        ).fetchone()
+        assert row[0] == "fixed"
+
+    def test_add_file_source_format_defaults_to_empty(self, state):
+        state.add_file("fmt2", "fm/fmt2.cbl", 800, 40, file_type="cbl")
+        row = state.con.execute(
+            "SELECT source_format FROM files WHERE sha256 = 'fmt2'"
+        ).fetchone()
+        assert row[0] == ""
+
 
 class TestProvenance:
     def test_add_provenance(self, state):
@@ -434,6 +451,39 @@ class TestFileTypeMigration:
             "SELECT file_type FROM files WHERE sha256 = 'oldhash'"
         ).fetchone()
         assert row[0] == "unknown"
+        sm.close()
+
+
+class TestSourceFormatMigration:
+    def test_migrate_files_without_source_format(self, state_dir):
+        """Parquet with file_type but no source_format gets migrated with ''."""
+        import duckdb
+
+        state_dir.mkdir(parents=True, exist_ok=True)
+        con = duckdb.connect(":memory:")
+        con.execute("""
+            CREATE TABLE files (
+                sha256 VARCHAR PRIMARY KEY,
+                store_path VARCHAR NOT NULL,
+                byte_size INTEGER NOT NULL,
+                line_count INTEGER NOT NULL,
+                file_type VARCHAR NOT NULL,
+                dialect_tags VARCHAR DEFAULT '',
+                first_seen_at TIMESTAMP NOT NULL
+            )
+        """)
+        con.execute(
+            "INSERT INTO files VALUES ('hash1', 'ha/hash1.cbl', 500, 25, 'cbl', 'SQL', '2025-01-01')"
+        )
+        parquet_path = state_dir / "files.parquet"
+        con.execute(f"COPY files TO '{parquet_path}' (FORMAT parquet)")
+        con.close()
+
+        sm = StateManager(state_dir)
+        row = sm.con.execute(
+            "SELECT source_format FROM files WHERE sha256 = 'hash1'"
+        ).fetchone()
+        assert row[0] == ""
         sm.close()
 
 

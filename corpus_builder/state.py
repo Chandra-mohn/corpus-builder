@@ -54,6 +54,7 @@ CREATE_STMTS = {
             line_count    INTEGER NOT NULL,
             file_type     VARCHAR NOT NULL,
             dialect_tags  VARCHAR DEFAULT '',
+            source_format VARCHAR DEFAULT '',
             first_seen_at TIMESTAMP NOT NULL
         )
     """,
@@ -131,6 +132,12 @@ class StateManager:
                     self.con.execute(
                         f"CREATE TABLE {table} AS "
                         f"SELECT *, 'unknown' AS file_type FROM read_parquet('{parquet_path}')"
+                    )
+                elif table == "files" and "source_format" not in cols:
+                    log.warning("Migrating files table: adding source_format column")
+                    self.con.execute(
+                        f"CREATE TABLE {table} AS "
+                        f"SELECT *, '' AS source_format FROM read_parquet('{parquet_path}')"
                     )
                 elif table == "repos" and "repo_size_kb" not in cols:
                     log.warning("Migrating repos table: adding repo_size_kb column")
@@ -392,11 +399,12 @@ class StateManager:
         line_count: int,
         file_type: str = "unknown",
         dialect_tags: str = "",
+        source_format: str = "",
     ) -> None:
         self.con.execute(
-            """INSERT INTO files (sha256, store_path, byte_size, line_count, file_type, dialect_tags, first_seen_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            [file_hash, store_path, byte_size, line_count, file_type, dialect_tags, _now()],
+            """INSERT INTO files (sha256, store_path, byte_size, line_count, file_type, dialect_tags, source_format, first_seen_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            [file_hash, store_path, byte_size, line_count, file_type, dialect_tags, source_format, _now()],
         )
 
     # -- file_provenance --

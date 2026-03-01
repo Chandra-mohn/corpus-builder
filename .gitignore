@@ -158,3 +158,6 @@ claudedocs/
 # Test output
 test-output/
 test-results/
+
+# Cobol corpus folder
+cobol-corpus/

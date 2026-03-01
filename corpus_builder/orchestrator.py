@@ -10,6 +10,7 @@ from pathlib import Path
 from .config import Config
 from .extract.cobol_filter import is_cobol_file, has_multi_extension, is_binary_file, looks_like_cobol
 from .extract.dialect import detect_dialect
+from .extract.format_detector import detect_source_format
 from .extract.hasher import sha256
 from .extract.normalizer import normalize_cobol
 from .state import StateManager
@@ -118,6 +119,7 @@ class CorpusOrchestrator:
             if not looks_like_cobol(content):
                 log.debug("Skipping non-COBOL content: %s", file.name)
                 continue
+            source_format = detect_source_format(content)
             normalized = normalize_cobol(content)
             file_hash = sha256(normalized)
 
@@ -140,6 +142,7 @@ class CorpusOrchestrator:
                     line_count=normalized.count("\n") + 1,
                     file_type=file_type,
                     dialect_tags=dialect_tags,
+                    source_format=source_format,
                 )
                 self._files_extracted += 1
 
