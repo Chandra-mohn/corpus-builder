@@ -71,6 +71,7 @@ class GitHubAdapter(SourceAdapter):
                     "default_branch": repo.get("default_branch"),
                     "last_pushed_at": repo.get("pushed_at"),
                     "repo_size_kb": repo.get("size"),
+                    "is_fork": repo.get("fork", False),
                 }
                 collected += 1
                 if self.max_repos and collected >= self.max_repos:

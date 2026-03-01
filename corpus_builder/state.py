@@ -38,6 +38,7 @@ CREATE_STMTS = {
             completed_at    TIMESTAMP,
             last_run_id     VARCHAR,
             repo_size_kb    INTEGER,
+            is_fork         BOOLEAN DEFAULT FALSE,
             quality_score       INTEGER,
             cobol_files         INTEGER,
             cobol_code_lines    INTEGER,
@@ -145,6 +146,12 @@ class StateManager:
                         f"CREATE TABLE {table} AS "
                         f"SELECT *, NULL::INTEGER AS repo_size_kb FROM read_parquet('{parquet_path}')"
                     )
+                elif table == "repos" and "is_fork" not in cols:
+                    log.warning("Migrating repos table: adding is_fork column")
+                    self.con.execute(
+                        f"CREATE TABLE {table} AS "
+                        f"SELECT *, FALSE AS is_fork FROM read_parquet('{parquet_path}')"
+                    )
                 elif table == "repos" and "quality_score" not in cols:
                     log.warning("Migrating repos table: adding evaluation columns")
                     self.con.execute(
@@ -232,6 +239,7 @@ class StateManager:
                        description = COALESCE(?, description),
                        default_branch = COALESCE(?, default_branch),
                        repo_size_kb = COALESCE(?, repo_size_kb),
+                       is_fork = COALESCE(?, is_fork),
                        last_run_id = COALESCE(?, last_run_id)
                        WHERE repo_id = ?""",
                     [
@@ -240,6 +248,7 @@ class StateManager:
                         repo_meta.get("description"),
                         repo_meta.get("default_branch"),
                         repo_meta.get("repo_size_kb"),
+                        repo_meta.get("is_fork"),
                         run_id,
                         repo_meta["id"],
                     ],
@@ -253,6 +262,7 @@ class StateManager:
                        description = COALESCE(?, description),
                        default_branch = COALESCE(?, default_branch),
                        repo_size_kb = COALESCE(?, repo_size_kb),
+                       is_fork = COALESCE(?, is_fork),
                        last_run_id = COALESCE(?, last_run_id)
                        WHERE repo_id = ?""",
                     [
@@ -261,6 +271,7 @@ class StateManager:
                         repo_meta.get("description"),
                         repo_meta.get("default_branch"),
                         repo_meta.get("repo_size_kb"),
+                        repo_meta.get("is_fork"),
                         run_id,
                         repo_meta["id"],
                     ],
@@ -271,8 +282,8 @@ class StateManager:
                 """INSERT INTO repos
                    (repo_id, clone_url, source, status, license_spdx, stars,
                     description, default_branch, last_pushed_at, discovered_at,
-                    last_run_id, repo_size_kb)
-                   VALUES (?, ?, ?, 'discovered', ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    last_run_id, repo_size_kb, is_fork)
+                   VALUES (?, ?, ?, 'discovered', ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 [
                     repo_meta["id"],
                     repo_meta["clone_url"],
@@ -285,6 +296,7 @@ class StateManager:
                     now,
                     run_id,
                     repo_meta.get("repo_size_kb"),
+                    repo_meta.get("is_fork", False),
                 ],
             )
             return True

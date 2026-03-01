@@ -7,7 +7,7 @@ from pathlib import Path
 import typer
 
 from .config import load_config
-from .evaluate import evaluate_repo
+from .evaluate import RepoMetadata, evaluate_repo
 from .orchestrator import CorpusOrchestrator
 from .sources.registry import get_adapter, list_adapters
 from .state import StateManager
@@ -432,7 +432,23 @@ def evaluate(
     for repo_id, repo_path in repo_dirs:
         log.debug("Evaluating %s", repo_id)
         try:
-            ev = evaluate_repo(repo_path, repo_id, eval_cfg.training_keywords)
+            metadata = None
+            if state is not None:
+                row = state.con.execute(
+                    "SELECT stars, description, is_fork FROM repos WHERE repo_id = ?",
+                    [repo_id],
+                ).fetchone()
+                if row is not None:
+                    metadata = RepoMetadata(
+                        stars=row[0] or 0,
+                        description=row[1] or "",
+                        is_fork=bool(row[2]),
+                        repo_name=repo_id,
+                    )
+            ev = evaluate_repo(
+                repo_path, repo_id, eval_cfg.training_keywords,
+                metadata=metadata, anti_keywords=eval_cfg.training_keywords,
+            )
             results.append(ev)
 
             if state is not None:
@@ -577,6 +593,67 @@ def retry_failed(
         orchestrator.finish()
     finally:
         orchestrator.close()
+
+
+@app.command()
+def reset(
+    config_path: Path = typer.Option(
+        "corpus_builder.toml", "--config", "-c", help="Path to config file"
+    ),
+    all_data: bool = typer.Option(
+        False, "--all", help="Remove state, repos, mirrors, and working directories"
+    ),
+    state_only: bool = typer.Option(
+        False, "--state-only", help="Remove only the data/ state directory"
+    ),
+    repos_only: bool = typer.Option(
+        False, "--repos-only", help="Remove only repos/, mirrors/, and working/ directories"
+    ),
+    force: bool = typer.Option(
+        False, "--force", help="Skip confirmation prompt"
+    ),
+) -> None:
+    """Reset the corpus by removing state and/or repo data."""
+    setup_logging("INFO")
+
+    flags = [all_data, state_only, repos_only]
+    if sum(flags) != 1:
+        typer.echo("Error: specify exactly one of --all, --state-only, --repos-only")
+        raise typer.Exit(1)
+
+    cfg = load_config(config_path)
+    base_dir = Path(cfg.output_dir)
+
+    targets: list[Path] = []
+    if state_only:
+        targets.append(base_dir / "data")
+    elif repos_only:
+        for name in ("repos", "mirrors", "working"):
+            targets.append(base_dir / name)
+    else:  # --all
+        for name in ("data", "repos", "mirrors", "working"):
+            targets.append(base_dir / name)
+
+    existing = [t for t in targets if t.exists()]
+    if not existing:
+        typer.echo("Nothing to remove -- no target directories exist.")
+        return
+
+    typer.echo("Will remove:")
+    for t in existing:
+        typer.echo("  %s" % t)
+
+    if not force:
+        confirm = typer.confirm("Proceed?")
+        if not confirm:
+            typer.echo("Aborted.")
+            raise typer.Exit(0)
+
+    for t in existing:
+        shutil.rmtree(t)
+        log.info("Removed %s", t)
+
+    typer.echo("Reset complete.")
 
 
 def main() -> None:
